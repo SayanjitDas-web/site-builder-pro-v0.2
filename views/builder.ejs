@@ -1,0 +1,1212 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Drag & Drop Website Builder</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="/js/plugins.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        .draggable-item {
+            cursor: grab;
+            transition: all 0.2s;
+        }
+
+        .draggable-item:active {
+            cursor: grabbing;
+        }
+
+        #canvas-area {
+            background-image: radial-gradient(#e2e8f0 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+
+        .canvas-element {
+            position: relative;
+            border-style: solid;
+            transition: all 0.2s;
+            min-height: 20px;
+        }
+
+        .canvas-element:hover {
+            outline: 2px dashed #94a3b8;
+            outline-offset: -2px;
+        }
+
+        .canvas-element.selected {
+            outline: 2px solid #3b82f6 !important;
+            outline-offset: -2px;
+            z-index: 10;
+        }
+
+        .btn-active {
+            background-color: #3b82f6;
+            color: white;
+        }
+
+        .btn-inactive {
+            background-color: white;
+            color: #4b5563;
+        }
+
+        .modal {
+            background-color: rgba(0, 0, 0, 0.5);
+        }
+
+        .input-group {
+            display: flex;
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .input-group input {
+            border: none;
+            width: 60%;
+            padding: 4px 8px;
+            font-size: 14px;
+        }
+
+        .input-group select {
+            border: none;
+            width: 40%;
+            background-color: #f3f4f6;
+            font-size: 12px;
+            padding: 0 4px;
+            border-left: 1px solid #d1d5db;
+            color: #4b5563;
+        }
+
+        .input-group input:focus,
+        .input-group select:focus {
+            outline: none;
+            background-color: #fff;
+        }
+    </style>
+</head>
+
+<body class="bg-gray-100 h-screen flex flex-col overflow-hidden">
+
+    <!-- Top Navigation -->
+    <nav class="bg-white border-b border-gray-200 h-16 flex items-center justify-between px-6 shadow-sm z-10">
+        <div class="flex items-center gap-3">
+            <i class="fa-solid fa-cube text-blue-600 text-xl"></i>
+            <h1 class="font-bold text-gray-800 text-lg">SiteBuilder Pro</h1>
+        </div>
+        <div class="flex gap-3">
+            <div class="flex bg-gray-100 rounded-lg p-1 gap-1 border border-gray-200 mr-2">
+                <button onclick="undo()" id="btn-undo"
+                    class="px-3 py-1 text-gray-600 hover:text-black hover:bg-white rounded transition disabled:opacity-30"
+                    disabled title="Undo"><i class="fa-solid fa-rotate-left"></i></button>
+                <button onclick="redo()" id="btn-redo"
+                    class="px-3 py-1 text-gray-600 hover:text-black hover:bg-white rounded transition disabled:opacity-30"
+                    disabled title="Redo"><i class="fa-solid fa-rotate-right"></i></button>
+            </div>
+            <button onclick="openPreview()"
+                class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition shadow-sm"><i
+                    class="fa-solid fa-eye mr-2"></i>Preview</button>
+            <button onclick="clearCanvas()"
+                class="px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg text-sm font-medium transition"><i
+                    class="fa-solid fa-trash-can mr-2"></i>Clear</button>
+            <!-- NEW THEMES BUTTON -->
+            <button onclick="navigateDashboard()"
+                class="px-4 py-2 text-gray-600 hover:bg-gray-50 rounded-lg text-sm font-medium border border-gray-200 transition"><i
+                    class="fa-solid fa-arrow-left mr-2"></i>Dashboard</button>
+
+
+            <button onclick="saveSite()"
+                class="px-4 py-2 text-green-600 hover:bg-green-50 rounded-lg text-sm font-medium border border-green-200 transition"><i
+                    class="fa-solid fa-cloud-arrow-up mr-2"></i>Save</button>
+            <button onclick="openSettings()"
+                class="px-4 py-2 text-gray-700 hover:bg-gray-50 rounded-lg text-sm font-medium border border-gray-300 transition"><i
+                    class="fa-solid fa-cog mr-2"></i>Settings</button>
+
+            <button onclick="logout()"
+                class="px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg text-sm font-medium border border-red-200 transition"><i
+                    class="fa-solid fa-sign-out-alt mr-2"></i>Logout</button>
+            <input type="file" id="importFile" class="hidden" accept=".json" onchange="importJSON(this)">
+            <button onclick="document.getElementById('importFile').click()"
+                class="px-4 py-2 text-gray-700 hover:bg-gray-50 rounded-lg text-sm font-medium border border-gray-300 transition"><i
+                    class="fa-solid fa-file-import mr-2"></i>Import</button>
+            <button onclick="exportJSON()"
+                class="px-4 py-2 text-gray-700 hover:bg-gray-50 rounded-lg text-sm font-medium border border-gray-300 transition"><i
+                    class="fa-solid fa-file-export mr-2"></i>Export</button>
+
+        </div>
+    </nav>
+
+    <!-- Page Settings Modal -->
+    <div id="settings-modal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden">
+            <div class="p-4 border-b flex justify-between items-center bg-gray-50">
+                <h3 class="font-bold text-gray-800">Page Settings</h3>
+                <button onclick="closeSettings()" class="text-gray-400 hover:text-gray-600"><i
+                        class="fa-solid fa-times"></i></button>
+            </div>
+            <div class="p-6 space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Page Name</label>
+                    <input type="text" id="setting-name"
+                        class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">URL Slug</label>
+                    <div class="flex">
+                        <span
+                            class="inline-flex items-center px-3 rounded-l-md border border-r-0 border-gray-300 bg-gray-50 text-gray-500 text-sm">/p/</span>
+                        <input type="text" id="setting-slug"
+                            class="flex-1 min-w-0 block w-full px-3 py-2 rounded-none rounded-r-lg border focus:ring-2 focus:ring-blue-500 outline-none">
+                    </div>
+                </div>
+            </div>
+            <div class="p-4 bg-gray-50 flex justify-end gap-3">
+                <button onclick="closeSettings()"
+                    class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg font-medium">Cancel</button>
+                <button onclick="saveSettings()"
+                    class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium shadow-sm">Save
+                    Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Workspace -->
+    <div class="flex flex-1 overflow-hidden">
+        <aside class="w-64 bg-white border-r border-gray-200 flex flex-col z-10">
+            <div class="p-4 border-b border-gray-100">
+                <h2 class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Components</h2>
+            </div>
+            <div id="sidebar-components" class="flex-1 overflow-y-auto p-4 space-y-3"></div>
+        </aside>
+
+        <main class="flex-1 bg-gray-50 relative overflow-hidden flex flex-col">
+            <div class="flex-1 overflow-y-auto p-8 flex justify-center bg-gray-200" id="canvas-container">
+                <div id="canvas-area" class="bg-white min-h-[800px] w-full shadow-lg rounded-sm" ondrop="drop(event)"
+                    ondragover="allowDrop(event)"></div>
+            </div>
+        </main>
+
+        <aside class="w-72 bg-white border-l border-gray-200 flex flex-col z-10" id="properties-panel">
+            <div class="p-4 border-b border-gray-100">
+                <h2 class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Properties</h2>
+            </div>
+            <div id="no-selection" class="p-8 text-center text-gray-400"><i
+                    class="fa-regular fa-hand-pointer text-3xl mb-2"></i>
+                <p class="text-sm">Select an element to edit styles</p>
+            </div>
+            <div id="properties-form" class="hidden flex-1 overflow-y-auto p-4 space-y-5">
+                <div class="space-y-2">
+                    <label class="text-xs font-semibold text-gray-500 uppercase">Content</label>
+                    <input type="text" id="prop-text"
+                        class="w-full border border-gray-300 rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                        placeholder="Text Content">
+                    <div id="link-controls" class="hidden mt-2">
+                        <label class="text-[10px] text-gray-400 uppercase font-semibold">Link URL</label>
+                        <input type="text" id="prop-href"
+                            class="w-full border border-gray-300 rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                            placeholder="https://example.com">
+                        <label class="text-[10px] text-gray-400 uppercase font-semibold mt-2 block">Internal
+                            Page</label>
+                        <select id="prop-internal-link"
+                            class="w-full border border-gray-300 rounded p-1 text-sm bg-gray-50 outline-none">
+                            <option value="">-- Custom / Select --</option>
+                        </select>
+                    </div>
+                    <div id="image-controls" class="hidden space-y-2">
+                        <input type="text" id="prop-src"
+                            class="w-full border border-gray-300 rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                            placeholder="Image URL">
+                        <div><span class="text-[10px] text-gray-400">Fit Mode</span><select id="prop-object-fit"
+                                class="w-full border border-gray-300 rounded p-1 text-sm"
+                                onchange="updateStyle('objectFit', this.value)">
+                                <option value="fill">Fill</option>
+                                <option value="cover">Cover</option>
+                                <option value="contain">Contain</option>
+                                <option value="scale-down">Scale Down</option>
+                            </select></div>
+                        <div class="flex items-center gap-2">
+                            <label
+                                class="cursor-pointer bg-gray-100 hover:bg-gray-200 text-gray-600 px-3 py-1.5 rounded text-xs font-medium w-full text-center">
+                                <i class="fa-solid fa-upload mr-1"></i> Upload
+                                <input type="file" id="prop-file" accept="image/*" class="hidden"
+                                    onchange="handleImageUpload(this)">
+                            </label>
+                            <button onclick="openMediaModal()"
+                                class="bg-indigo-50 hover:bg-indigo-100 text-indigo-600 px-3 py-1.5 rounded text-xs font-medium w-full text-center">
+                                <i class="fa-solid fa-images mr-1"></i> Library
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div id="extra-properties" class="space-y-4"></div>
+                <div class="space-y-2">
+                    <label class="text-xs font-semibold text-gray-500 uppercase">Colors</label>
+                    <div class="flex items-center justify-between"><span class="text-sm text-gray-600">Text</span><input
+                            type="color" id="prop-color" class="w-8 h-8 rounded cursor-pointer border-0 p-0"></div>
+                    <div class="flex items-center justify-between"><span
+                            class="text-sm text-gray-600">Background</span><input type="color" id="prop-bg"
+                            class="w-8 h-8 rounded cursor-pointer border-0 p-0"></div>
+                </div>
+                <div class="space-y-2">
+                    <label class="text-xs font-semibold text-gray-500 uppercase">Spacing</label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div><span class="text-[10px] text-gray-400">Padding</span>
+                            <div class="input-group"><input type="number" id="prop-padding-val"
+                                    oninput="updateUnitStyle('padding', 'val')"><select id="prop-padding-unit"
+                                    onchange="updateUnitStyle('padding', 'unit')">
+                                    <option value="px">px</option>
+                                    <option value="rem">rem</option>
+                                    <option value="em">em</option>
+                                    <option value="%">%</option>
+                                </select></div>
+                        </div>
+                        <div><span class="text-[10px] text-gray-400">Margin</span>
+                            <div class="input-group"><input type="number" id="prop-margin-val"
+                                    oninput="updateUnitStyle('margin', 'val')"><select id="prop-margin-unit"
+                                    onchange="updateUnitStyle('margin', 'unit')">
+                                    <option value="px">px</option>
+                                    <option value="rem">rem</option>
+                                    <option value="auto">auto</option>
+                                </select></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="space-y-2">
+                    <label class="text-xs font-semibold text-gray-500 uppercase">Border</label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div><span class="text-[10px] text-gray-400">Width</span>
+                            <div class="input-group"><input type="number" id="prop-border-width-val" min="0"
+                                    oninput="updateUnitStyle('borderWidth', 'val')"><select id="prop-border-width-unit"
+                                    onchange="updateUnitStyle('borderWidth', 'unit')">
+                                    <option value="px">px</option>
+                                    <option value="rem">rem</option>
+                                </select></div>
+                        </div>
+                        <div><span class="text-[10px] text-gray-400">Color</span>
+                            <div class="flex items-center h-[29px]"><input type="color" id="prop-border-color"
+                                    class="w-full h-full rounded cursor-pointer border-0 p-0"></div>
+                        </div>
+                        <div><span class="text-[10px] text-gray-400">Style</span><select id="prop-border-style"
+                                class="w-full border border-gray-300 rounded p-1 text-sm"
+                                onchange="updateStyle('borderStyle', this.value)">
+                                <option value="none">None</option>
+                                <option value="solid">Solid</option>
+                                <option value="dashed">Dashed</option>
+                                <option value="dotted">Dotted</option>
+                            </select></div>
+                        <div><span class="text-[10px] text-gray-400">Radius</span>
+                            <div class="input-group"><input type="number" id="prop-radius-val"
+                                    oninput="updateUnitStyle('borderRadius', 'val')"><select id="prop-radius-unit"
+                                    onchange="updateUnitStyle('borderRadius', 'unit')">
+                                    <option value="px">px</option>
+                                    <option value="%">%</option>
+                                    <option value="rem">rem</option>
+                                </select></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="space-y-2">
+                    <label class="text-xs font-semibold text-gray-500 uppercase">Typography</label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div><span class="text-[10px] text-gray-400">Size</span>
+                            <div class="input-group"><input type="number" id="prop-size-val"
+                                    oninput="updateUnitStyle('fontSize', 'val')"><select id="prop-size-unit"
+                                    onchange="updateUnitStyle('fontSize', 'unit')">
+                                    <option value="px">px</option>
+                                    <option value="rem">rem</option>
+                                </select></div>
+                        </div>
+                        <div><span class="text-[10px] text-gray-400">Align</span><select id="prop-align"
+                                class="w-full border border-gray-300 rounded p-1 text-sm"
+                                onchange="updateStyle('textAlign', this.value)">
+                                <option value="left">Left</option>
+                                <option value="center">Center</option>
+                                <option value="right">Right</option>
+                            </select></div>
+                    </div>
+                </div>
+                <div class="space-y-2">
+                    <label class="text-xs font-semibold text-gray-500 uppercase">Layout Dimensions</label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div><span class="text-[10px] text-gray-400">Width</span>
+                            <div class="input-group"><input type="number" id="prop-width-val"
+                                    oninput="updateUnitStyle('width', 'val')"><select id="prop-width-unit"
+                                    onchange="updateUnitStyle('width', 'unit')">
+                                    <option value="%">%</option>
+                                    <option value="px">px</option>
+                                    <option value="vw">vw</option>
+                                    <option value="auto">auto</option>
+                                </select></div>
+                        </div>
+                        <div><span class="text-[10px] text-gray-400">Height</span>
+                            <div class="input-group"><input type="number" id="prop-height-val"
+                                    oninput="updateUnitStyle('height', 'val')"><select id="prop-height-unit"
+                                    onchange="updateUnitStyle('height', 'unit')">
+                                    <option value="auto">auto</option>
+                                    <option value="px">px</option>
+                                    <option value="vh">vh</option>
+                                    <option value="%">%</option>
+                                </select></div>
+                        </div>
+                    </div>
+                </div>
+                <div id="layout-engine-controls" class="hidden space-y-2 border-t border-gray-100 pt-4">
+                    <label class="text-xs font-semibold text-gray-500 uppercase">Container Layout</label>
+                    <div class="flex bg-gray-100 p-1 rounded">
+                        <button onclick="updateStyle('display', 'block')" id="btn-display-block"
+                            class="flex-1 text-xs py-1 rounded transition">Block</button>
+                        <button onclick="updateStyle('display', 'flex')" id="btn-display-flex"
+                            class="flex-1 text-xs py-1 rounded transition">Flex</button>
+                    </div>
+                    <div id="flex-options" class="hidden space-y-2 mt-2">
+                        <div class="grid grid-cols-2 gap-2">
+                            <div><span class="text-[10px] text-gray-400">Direction</span><select id="prop-flex-dir"
+                                    class="w-full border border-gray-300 rounded p-1 text-sm"
+                                    onchange="updateStyle('flexDirection', this.value)">
+                                    <option value="row">Row →</option>
+                                    <option value="column">Col ↓</option>
+                                </select></div>
+                            <div><span class="text-[10px] text-gray-400">Wrap</span><select id="prop-flex-wrap"
+                                    class="w-full border border-gray-300 rounded p-1 text-sm"
+                                    onchange="updateStyle('flexWrap', this.value)">
+                                    <option value="nowrap">No Wrap</option>
+                                    <option value="wrap">Wrap</option>
+                                </select></div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div><span class="text-[10px] text-gray-400">Justify (Main)</span><select id="prop-justify"
+                                    class="w-full border border-gray-300 rounded p-1 text-sm"
+                                    onchange="updateStyle('justifyContent', this.value)">
+                                    <option value="flex-start">Start</option>
+                                    <option value="center">Center</option>
+                                    <option value="flex-end">End</option>
+                                    <option value="space-between">Space Between</option>
+                                    <option value="space-around">Space Around</option>
+                                </select></div>
+                            <div><span class="text-[10px] text-gray-400">Align (Cross)</span><select
+                                    id="prop-align-items" class="w-full border border-gray-300 rounded p-1 text-sm"
+                                    onchange="updateStyle('alignItems', this.value)">
+                                    <option value="stretch">Stretch</option>
+                                    <option value="flex-start">Start</option>
+                                    <option value="center">Center</option>
+                                    <option value="flex-end">End</option>
+                                </select></div>
+                        </div>
+                        <div><span class="text-[10px] text-gray-400">Gap</span>
+                            <div class="input-group"><input type="number" id="prop-gap-val"
+                                    oninput="updateUnitStyle('gap', 'val')"><select id="prop-gap-unit"
+                                    onchange="updateUnitStyle('gap', 'unit')">
+                                    <option value="px">px</option>
+                                    <option value="rem">rem</option>
+                                </select></div>
+                        </div>
+                    </div>
+                </div>
+                <div id="flex-item-controls" class="hidden space-y-2 border-t border-gray-100 pt-4">
+                    <label class="text-xs font-semibold text-gray-500 uppercase">Flex Item Settings</label>
+                    <div class="grid grid-cols-3 gap-1">
+                        <div><span class="text-[10px] text-gray-400">Grow</span><input type="number" id="prop-flex-grow"
+                                class="w-full border border-gray-300 rounded p-1 text-sm" min="0"
+                                oninput="updateStyle('flexGrow', this.value)"></div>
+                        <div><span class="text-[10px] text-gray-400">Shrink</span><input type="number"
+                                id="prop-flex-shrink" class="w-full border border-gray-300 rounded p-1 text-sm" min="0"
+                                oninput="updateStyle('flexShrink', this.value)"></div>
+                        <div><span class="text-[10px] text-gray-400">Basis</span><input type="text" id="prop-flex-basis"
+                                class="w-full border border-gray-300 rounded p-1 text-sm" placeholder="auto"
+                                oninput="updateStyle('flexBasis', this.value)"></div>
+                    </div>
+                </div>
+                <div class="pt-4 border-t border-gray-100 flex flex-col gap-2">
+                    <div class="flex gap-2">
+                        <button onclick="moveItem(-1)"
+                            class="flex-1 py-1.5 bg-gray-100 text-gray-600 rounded text-xs hover:bg-gray-200"><i
+                                class="fa-solid fa-arrow-up"></i> Move Up</button>
+                        <button onclick="moveItem(1)"
+                            class="flex-1 py-1.5 bg-gray-100 text-gray-600 rounded text-xs hover:bg-gray-200"><i
+                                class="fa-solid fa-arrow-down"></i> Move Down</button>
+                    </div>
+                    <button onclick="deleteSelected()"
+                        class="w-full py-2 bg-red-50 text-red-600 rounded text-sm hover:bg-red-100 transition">Delete
+                        Element</button>
+                </div>
+            </div>
+        </aside>
+    </div>
+
+
+
+
+
+    <!-- Code Modal -->
+
+
+    <!-- Media Picker Modal -->
+    <div id="media-modal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-4xl h-[80vh] flex flex-col overflow-hidden">
+            <div class="p-4 border-b flex justify-between items-center bg-gray-50">
+                <h3 class="font-bold text-gray-800">Select Media</h3>
+                <button onclick="closeMediaModal()" class="text-gray-400 hover:text-gray-600"><i
+                        class="fa-solid fa-times"></i></button>
+            </div>
+            <div class="p-4 bg-gray-50 border-b flex justify-between items-center">
+                <div class="text-sm text-gray-500">Select an image to use</div>
+                <label
+                    class="cursor-pointer bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-medium shadow-sm transition-all flex items-center gap-2">
+                    <i class="fa-solid fa-cloud-arrow-up"></i> Upload
+                    <input type="file" id="builder-file-upload" class="hidden" accept="image/*" multiple
+                        onchange="handleBuilderUpload(this)">
+                </label>
+            </div>
+            <div id="builder-media-grid" class="flex-1 overflow-y-auto p-6 grid grid-cols-4 gap-4 content-start">
+                <!-- Media Items -->
+            </div>
+            <div class="p-4 border-t bg-gray-50 flex justify-end">
+                <button onclick="closeMediaModal()"
+                    class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg font-medium">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Preview Modal -->
+    <div id="preview-modal" class="hidden fixed inset-0 z-50 bg-gray-100 flex flex-col">
+        <div class="bg-white border-b border-gray-200 h-16 flex items-center justify-between px-6 shadow-sm">
+            <div class="font-bold text-gray-800">Site Preview</div>
+            <div class="flex bg-gray-100 rounded-lg p-1 gap-1"><button onclick="setPreviewMode('desktop')"
+                    id="preview-btn-desktop"
+                    class="px-3 py-1.5 rounded hover:bg-white text-gray-600 hover:text-indigo-600 transition"
+                    title="Desktop"><i class="fa-solid fa-desktop"></i></button><button
+                    onclick="setPreviewMode('tablet')" id="preview-btn-tablet"
+                    class="px-3 py-1.5 rounded hover:bg-white text-gray-600 hover:text-indigo-600 transition"
+                    title="Tablet"><i class="fa-solid fa-tablet-screen-button"></i></button><button
+                    onclick="setPreviewMode('mobile')" id="preview-btn-mobile"
+                    class="px-3 py-1.5 rounded hover:bg-white text-gray-600 hover:text-indigo-600 transition"
+                    title="Mobile"><i class="fa-solid fa-mobile-screen-button"></i></button></div>
+            <button onclick="closePreview()" class="text-gray-500 hover:text-red-500 transition px-2"><i
+                    class="fa-solid fa-times text-xl"></i></button>
+        </div>
+        <div class="flex-1 overflow-auto p-8 flex justify-center bg-gray-100"
+            onclick="if(event.target === this) closePreview()">
+            <div id="preview-wrapper"
+                class="bg-white shadow-2xl transition-all duration-300 ease-in-out border border-gray-200"
+                style="width: 100%; height: 100%;"><iframe id="preview-frame" class="w-full h-full border-0"></iframe>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hidden Sandbox Container -->
+    <div id="sandbox-container" style="display:none;"></div>
+
+    <script>
+        const componentRegistry = {}, propertyRegistry = [];
+        let canvasElements = [], selectedId = null, historyStack = [], historyStep = -1, historyDebounceTimer = null;
+        let myPlugins = []; // Fetched from API
+        const STORAGE_KEY = 'sitebuilder_pro_data';
+
+
+
+        // --- Sandbox with Queue & Fix for children syncing ---
+        const SANDBOX_SOURCE = `<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body><script>const c={};const g=()=>Math.random().toString(36).substr(2,9);window.alert=(m)=>window.parent.postMessage({type:'AL',m},'*');function p(n){if(!n||typeof n!=='object')return n;const h={set(t,k,v){t[k]=v;if(k==='children'||k==='styles'){window.parent.postMessage({type:'UREP',id:t.id,k,v},'*')}else{window.parent.postMessage({type:'UP',id:t.id,k,v},'*')}return true},get(t,k){if(k==='styles')return new Proxy(t.styles,{set(s,sk,sv){s[sk]=sv;window.parent.postMessage({type:'US',id:t.id,k:sk,v:sv},'*');return true}});if(k==='children')return new Proxy(t.children,{get(a,p){if(p==='push')return(...i)=>{const l=a.push(...i);window.parent.postMessage({type:'UC',id:t.id,i:JSON.parse(JSON.stringify(i))},'*');return l};return Reflect.get(a,p)}});return Reflect.get(t,k)}};return new Proxy(n,h)}window.builderAPI={registerComponent:(t,c)=>window.parent.postMessage({type:'RC',t,c},'*'),registerProperty:(cfg)=>{const sc={...cfg},ids={};if(typeof cfg.onChange==='function'){const i=g();c[i]=cfg.onChange;ids.onChange=i}if(typeof cfg.onClick==='function'){const i=g();c[i]=cfg.onClick;ids.onClick=i}delete sc.onChange;delete sc.onClick;window.parent.postMessage({type:'RP',c:sc,cb:ids},'*')},refreshCanvas:()=>window.parent.postMessage({type:'RF'},'*'),save:()=>window.parent.postMessage({type:'SV'},'*'),addGlobalStyle:(css)=>window.parent.postMessage({type:'AS',css},'*')};const callParent=(type,data)=>new Promise((res,rej)=>{const i=g();c[i]=(r,e)=>e?rej(e):res(r);window.parent.postMessage({type,id:i,...data},'*')});window.dashboardAPI={addComponent:()=>{},registerPage:()=>{},getData:(pid,col)=>callParent('GET_DATA',{pid,col}),createData:(pid,col,d)=>callParent('CREATE_DATA',{pid,col,d}),deleteData:()=>Promise.resolve()};window.addEventListener('message',e=>{const m=e.data;if(m.type==='EX'){try{new Function('dashboardAPI','builderAPI','pluginId',m.c)(window.dashboardAPI,window.builderAPI,m.id);window.parent.postMessage({type:'LG',m:'Ok'},'*')}catch(err){window.parent.postMessage({type:'ER',m:err.message},'*')}}else if(m.type==='CB'){const f=c[m.id];if(f){const a=[p(m.el)];if(m.v!==undefined)a.push(m.v);Promise.resolve(f.apply(null,a)).catch(e=>window.parent.postMessage({type:'ER',m:e.message},'*'))}}else if(m.type==='DATA_RES'){if(c[m.id])c[m.id](m.res,m.err)}}); window.parent.postMessage({type:'READY'}, '*');<\/script></body></html>`;
+
+        class Sandbox {
+            constructor() {
+                this.ready = false;
+                this.queue = [];
+                this.f = document.createElement('iframe');
+                this.f.style.display = 'none';
+                this.f.sandbox = 'allow-scripts';
+                this.f.srcdoc = SANDBOX_SOURCE;
+                document.getElementById('sandbox-container').appendChild(this.f);
+                window.addEventListener('message', this.h.bind(this));
+            }
+            exec(c, id) {
+                const msg = { type: 'EX', c, id };
+                if (this.ready) this.f.contentWindow.postMessage(msg, '*');
+                else this.queue.push(msg);
+            }
+            destroy() {
+                document.getElementById('sandbox-container').removeChild(this.f);
+            }
+            async h(e) {
+                if (e.source !== this.f.contentWindow) return;
+                const m = e.data;
+                if (m.type === 'READY') {
+                    this.ready = true;
+                    this.queue.forEach(q => this.f.contentWindow.postMessage(q, '*'));
+                    this.queue = [];
+                    setTimeout(() => builderAPI.registerComponent('dummy', { label: '', icon: '', tagName: 'div' }), 100);
+                }
+                else if (m.type === 'RC') { builderAPI.registerComponent(m.t, m.c); builderAPI.refreshCanvas(); }
+                else if (m.type === 'RP') {
+                    const cfg = m.c;
+                    if (m.cb.onChange) cfg.onChange = (el, v) => this.f.contentWindow.postMessage({ type: 'CB', id: m.cb.onChange, el: JSON.parse(JSON.stringify(el)), v }, '*');
+                    if (m.cb.onClick) cfg.onClick = (el) => this.f.contentWindow.postMessage({ type: 'CB', id: m.cb.onClick, el: JSON.parse(JSON.stringify(el)) }, '*');
+                    builderAPI.registerProperty(cfg);
+                }
+                else if (m.type === 'UP') { const el = findElementById(canvasElements, m.id); if (el) { el[m.k] = m.v; builderAPI.refreshCanvas(); } }
+                else if (m.type === 'US') { const el = findElementById(canvasElements, m.id); if (el) { el.styles[m.k] = m.v; builderAPI.refreshCanvas(); } }
+                else if (m.type === 'UC') { const el = findElementById(canvasElements, m.id); if (el) { el.children.push(...m.i); builderAPI.refreshCanvas(); } }
+                else if (m.type === 'UREP') { const el = findElementById(canvasElements, m.id); if (el) { el[m.k] = m.v; builderAPI.refreshCanvas(); } }
+                else if (m.type === 'AS') { builderAPI.addGlobalStyle(m.css); }
+                else if (m.type === 'RF') builderAPI.refreshCanvas();
+                else if (m.type === 'SV') builderAPI.save();
+                else if (m.type === 'AL') alert(m.m);
+                else if (m.type === 'ER') alert('Plugin Error: ' + m.m);
+                // Data Proxies
+                else if (m.type === 'GET_DATA') {
+                    try {
+                        const res = await fetch(`/api/pl-data/${m.pid}/${m.col}`);
+                        const data = await res.json();
+                        this.f.contentWindow.postMessage({ type: 'DATA_RES', id: m.id, res: data }, '*');
+                    } catch (e) { this.f.contentWindow.postMessage({ type: 'DATA_RES', id: m.id, err: e.message }, '*'); }
+                }
+                else if (m.type === 'CREATE_DATA') {
+                    try {
+                        const res = await fetch(`/api/pl-data/${m.pid}/${m.col}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ data: m.d }) });
+                        const data = await res.json();
+                        this.f.contentWindow.postMessage({ type: 'DATA_RES', id: m.id, res: data }, '*');
+                    } catch (e) { this.f.contentWindow.postMessage({ type: 'DATA_RES', id: m.id, err: e.message }, '*'); }
+                }
+
+            }
+        }
+        let pluginSandbox;
+
+        function initSandbox() {
+            if (pluginSandbox) pluginSandbox.destroy();
+            globalStyles = "";
+            pluginSandbox = new Sandbox();
+        }
+
+
+        window.builderAPI = {
+            registerComponent: (t, c) => { componentRegistry[t] = { icon: c.icon || 'fa-cube', label: c.label || 'Unk', tagName: c.tagName || 'div', defaultContent: c.defaultContent || '', defaultStyles: c.defaultStyles || {}, render: c.render || null, canDrop: c.canDrop || false }; renderSidebar(); },
+            registerProperty: (c) => propertyRegistry.push(c),
+            refreshCanvas: () => { renderCanvas(); pushToHistory(); },
+            save: () => pushToHistory(),
+            getSelectedElement: () => selectedId ? findElementById(canvasElements, selectedId) : null,
+            addGlobalStyle: (css) => {
+                const s = document.createElement('style');
+                s.innerHTML = css;
+                document.head.appendChild(s);
+                globalStyles += css + "\n";
+            }
+        };
+
+        function init() {
+            builderAPI.registerComponent('header', {
+                icon: 'fa-heading text-blue-600 bg-blue-100',
+                label: 'Header',
+                tagName: 'h2',
+                defaultContent: 'New Header',
+                defaultStyles: { fontSize: '30px', fontWeight: '700', color: '#1f2937', marginBottom: '10px', lineHeight: '1.2' }
+            });
+            builderAPI.registerComponent('paragraph', {
+                icon: 'fa-paragraph text-green-600 bg-green-100',
+                label: 'Text',
+                tagName: 'p',
+                defaultContent: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Suspendisse varius enim in eros elementum tristique.',
+                defaultStyles: { fontSize: '16px', color: '#4b5563', marginBottom: '16px', lineHeight: '1.6' }
+            });
+            // NEW: Explicit Link Component
+            builderAPI.registerComponent('link', {
+                icon: 'fa-link text-blue-500 bg-blue-100',
+                label: 'Link',
+                tagName: 'a',
+                defaultContent: 'Link',
+                defaultStyles: {
+                    textDecoration: 'none',
+                    color: '#3b82f6',
+                    cursor: 'pointer'
+                }
+            });
+            builderAPI.registerComponent('button', {
+                icon: 'fa-stop text-purple-600 bg-purple-100',
+                label: 'Button',
+                tagName: 'button',
+                defaultContent: 'Click Me',
+                defaultStyles: { backgroundColor: '#3b82f6', color: '#ffffff', padding: '12px 24px', borderRadius: '6px', borderStyle: 'none', fontWeight: '500', display: 'inline-block', width: 'auto', cursor: 'pointer' }
+            });
+            builderAPI.registerComponent('image', {
+                icon: 'fa-image text-yellow-600 bg-yellow-100',
+                label: 'Image',
+                tagName: 'img',
+                defaultStyles: { width: '100%', height: 'auto', display: 'block', borderRadius: '8px', objectFit: 'cover' }
+            });
+            // Renamed for clarity, logic stays similar to standard container
+            builderAPI.registerComponent('card', {
+                icon: 'fa-square text-gray-600 bg-gray-100',
+                label: 'Container / Card',
+                tagName: 'div',
+                canDrop: true,
+                defaultStyles: { padding: '24px', backgroundColor: '#ffffff', borderWidth: '1px', borderStyle: 'solid', borderColor: '#e5e7eb', borderRadius: '8px', minHeight: '100px', display: 'flex', flexDirection: 'column', gap: '16px' }
+            });
+            builderAPI.registerComponent('input', {
+                icon: 'fa-keyboard text-red-600 bg-red-100',
+                label: 'Input',
+                tagName: 'input',
+                defaultStyles: { borderWidth: '1px', borderStyle: 'solid', borderColor: '#d1d5db', padding: '10px 14px', borderRadius: '6px', width: '100%', backgroundColor: '#f9fafb', color: '#111827' }
+            });
+        }
+
+        function renderSidebar() {
+            const c = document.getElementById('sidebar-components'); c.innerHTML = '';
+            Object.keys(componentRegistry).forEach(k => {
+                if (k === 'dummy') return; // Skip internal
+                const cmp = componentRegistry[k];
+                const d = document.createElement('div');
+                d.className = 'draggable-item bg-white p-3 border border-gray-200 rounded-lg shadow-sm hover:shadow-md flex items-center gap-3';
+                d.draggable = true; d.ondragstart = (e) => e.dataTransfer.setData("type", k);
+                d.innerHTML = `<div class="w-8 h-8 rounded flex items-center justify-center text-lg ${cmp.icon.includes(' ') ? '' : 'text-gray-600'}"><i class="fa-solid ${cmp.icon}"></i></div><span class="text-sm font-medium text-gray-700">${cmp.label}</span>`;
+                c.appendChild(d);
+            });
+        }
+
+        function addElement(type, pId) {
+            const def = componentRegistry[type]; if (!def) return;
+            const id = Math.random().toString(36).substr(2, 9);
+            const el = {
+                id, type, tagName: def.tagName, content: def.defaultContent, src: type === 'image' ? 'https://via.placeholder.com/400x200' : '', placeholder: type === 'input' ? 'Enter text...' : '', children: [],
+                styles: { marginTop: '0px', marginBottom: '0px', padding: '0px', color: '#000000', backgroundColor: 'transparent', fontSize: '16px', textAlign: 'left', borderRadius: '0px', width: '100%', height: 'auto', borderWidth: '0px', borderStyle: 'none', borderColor: '#000000', display: 'block', flexDirection: 'column', justifyContent: 'flex-start', alignItems: 'stretch', gap: '0px', flexWrap: 'nowrap', flexGrow: '0', flexShrink: '1', flexBasis: 'auto', className: '', ...def.defaultStyles }
+            };
+            if (pId) { const p = findElementById(canvasElements, pId); if (p) (componentRegistry[p.type].canDrop ? p.children : canvasElements).push(el); } else canvasElements.push(el);
+            renderCanvas(); selectElement(id); pushToHistory();
+        }
+
+        function renderCanvas() {
+            const c = document.getElementById('canvas-area'); c.innerHTML = '';
+            if (!canvasElements.length) { c.innerHTML = `<div class="h-full flex flex-col items-center justify-center text-gray-400 border-2 border-dashed border-gray-200 rounded-lg"><i class="fa-solid fa-arrow-pointer text-4xl mb-3"></i><p>Drag components here</p></div>`; return; }
+            const rec = (con, arr) => {
+                arr.forEach(el => {
+                    const def = componentRegistry[el.type];
+                    // FIX: Use el.tagName if available (e.g. set by plugin), otherwise fallback to component definition
+                    const tag = el.tagName || (def ? def.tagName : 'div');
+
+                    const d = document.createElement(tag); d.id = el.id; d.className = ('canvas-element ' + (selectedId === el.id ? 'selected ' : '') + (el.styles.className || '')).trim();
+                    Object.assign(d.style, { ...el.styles, borderWidth: (el.styles.borderWidth || '0') + (isNaN(el.styles.borderWidth) ? '' : 'px') });
+                    if (el.type === 'input') d.placeholder = el.placeholder; if (el.type === 'image') d.src = el.src;
+
+                    // Handle Links & Forms in editor
+                    if (tag === 'a') d.onclick = e => { e.preventDefault(); e.stopPropagation(); selectElement(el.id); };
+                    if (el.href) d.setAttribute('href', el.href);
+                    if (tag === 'form') { d.onsubmit = e => e.preventDefault(); if (el.action) d.setAttribute('action', el.action); }
+
+                    if (!el.children || !el.children.length) { if (el.type !== 'input' && el.type !== 'image') d.innerText = el.content; }
+
+                    if (tag !== 'a') d.onclick = e => { e.stopPropagation(); selectElement(el.id); };
+
+                    if (def && def.canDrop) { d.ondragover = e => { e.preventDefault(); e.stopPropagation(); }; d.ondrop = e => { e.preventDefault(); e.stopPropagation(); addElement(e.dataTransfer.getData("type"), el.id); }; }
+                    if (el.children && el.children.length) rec(d, el.children);
+                    con.appendChild(d);
+                });
+            };
+            rec(c, canvasElements);
+        }
+
+        function up(el, p, v) { el[p] = v; renderCanvas(); debounceHistory(); }
+
+        function updatePropertiesPanel() {
+            const no = document.getElementById('no-selection'), frm = document.getElementById('properties-form');
+            if (!selectedId) { no.style.display = 'block'; frm.style.display = 'none'; return; }
+            no.style.display = 'none'; frm.style.display = 'block';
+            const el = findElementById(canvasElements, selectedId); if (!el) return;
+
+            // Add Parent Selection Button if applicable
+            const parent = findParentByChildId(canvasElements, selectedId);
+
+            const parentBtnContainer = document.getElementById('parent-select-container') || (() => {
+                const c = document.createElement('div');
+                c.id = 'parent-select-container';
+                c.className = 'mb-4 pb-4 border-b border-gray-200 hidden';
+                frm.insertBefore(c, frm.firstChild);
+                return c;
+            })();
+
+            if (parent) {
+                parentBtnContainer.innerHTML = `
+                    <button onclick="selectElement('${parent.id}')" class="w-full text-left text-xs bg-gray-50 hover:bg-gray-100 p-2 rounded text-indigo-600 flex items-center gap-2 transition">
+                        <i class="fa-solid fa-level-up-alt"></i> Select Parent: <span class="font-bold">${parent.label || parent.type}</span>
+                    </button>
+                `;
+                parentBtnContainer.classList.remove('hidden');
+            } else {
+                parentBtnContainer.classList.add('hidden');
+            }
+
+            const txt = document.getElementById('prop-text'), img = document.getElementById('image-controls'), src = document.getElementById('prop-src'), linkGroup = document.getElementById('link-controls'), hrefInput = document.getElementById('prop-href');
+
+            if (el.type === 'image') { txt.classList.add('hidden'); img.classList.remove('hidden'); src.value = el.src; src.oninput = e => up(el, 'src', e.target.value); document.getElementById('prop-object-fit').value = el.styles.objectFit || 'fill'; }
+            else { txt.classList.remove('hidden'); img.classList.add('hidden'); txt.value = el.type === 'input' ? el.placeholder : el.content; txt.oninput = e => up(el, el.type === 'input' ? 'placeholder' : 'content', e.target.value); }
+
+            // Link Logic
+            if (el.tagName === 'a' || el.href !== undefined) {
+                linkGroup.classList.remove('hidden');
+
+                const internalSelect = document.getElementById('prop-internal-link');
+                // Populate options
+                let opts = '<option value="">-- Custom / Select --</option>';
+                allUserPages.forEach(p => {
+                    // Don't link to self (optional check, but okay to allow)
+                    const url = '/p/' + (p.slug || p._id);
+                    opts += `<option value="${url}">${p.name}</option>`;
+                });
+                internalSelect.innerHTML = opts;
+
+                hrefInput.value = el.href || '#';
+
+                // Check if current href matches one of our pages
+                internalSelect.value = el.href || '';
+
+                hrefInput.oninput = e => {
+                    el.href = e.target.value;
+                    internalSelect.value = ''; // Reset select
+                    renderCanvas(); // Force re-render to update onclick/href in DOM
+                    debounceHistory();
+                };
+
+                internalSelect.onchange = e => {
+                    if (e.target.value) {
+                        el.href = e.target.value;
+                        hrefInput.value = e.target.value;
+                        renderCanvas();
+                        debounceHistory();
+                    }
+                };
+
+            } else {
+                linkGroup.classList.add('hidden');
+            }
+
+            const ex = document.getElementById('extra-properties'); ex.innerHTML = '';
+            propertyRegistry.forEach(p => {
+                if (p.targetType && p.targetType !== el.type) return;
+                const w = document.createElement('div');
+                if (p.type !== 'button') w.innerHTML = `<label class="text-xs font-semibold text-gray-500 uppercase">${p.label}</label>`;
+
+                if (p.type === 'select') {
+                    const s = document.createElement('select'); s.className = 'w-full border border-gray-300 rounded p-1 text-sm mt-1';
+                    p.options.forEach(o => s.innerHTML += `<option value="${o}">${o}</option>`);
+                    s.value = el.styles[p.key] || el[p.key] || ''; s.onchange = e => { p.onChange(el, e.target.value); builderAPI.refreshCanvas(); };
+                    w.appendChild(s);
+                } else if (p.type === 'text') {
+                    const i = document.createElement('input'); i.className = 'w-full border border-gray-300 rounded p-1 text-sm mt-1'; i.placeholder = p.placeholder || ''; i.value = el[p.key] || el.styles[p.key] || '';
+                    i.oninput = e => { p.onChange(el, e.target.value); builderAPI.refreshCanvas(); }; w.appendChild(i);
+                } else if (p.type === 'button') {
+                    const b = document.createElement('button'); b.className = 'w-full py-2 bg-indigo-50 text-indigo-600 rounded text-sm hover:bg-indigo-100 border border-indigo-200 mt-1';
+                    b.innerHTML = p.text; // Fixed: Use innerHTML to render icons
+                    b.onclick = () => { p.onClick(el); builderAPI.refreshCanvas(); }; w.appendChild(b);
+                }
+                ex.appendChild(w);
+            });
+
+            bindStandardInputs(el);
+            updateLayoutControls(el);
+        }
+
+        function bindStandardInputs(el) {
+            document.getElementById('prop-color').value = rgbToHex(el.styles.color);
+            document.getElementById('prop-color').oninput = (e) => updateStyle('color', e.target.value);
+            document.getElementById('prop-bg').value = rgbToHex(el.styles.backgroundColor);
+            document.getElementById('prop-bg').oninput = (e) => updateStyle('backgroundColor', e.target.value);
+            document.getElementById('prop-border-color').value = rgbToHex(el.styles.borderColor);
+            document.getElementById('prop-border-color').oninput = (e) => updateStyle('borderColor', e.target.value);
+
+            const setUnitInput = (prop, idBase) => {
+                const val = parseUnitValue(el.styles[prop]);
+                document.getElementById(idBase + '-val').value = val.num;
+                document.getElementById(idBase + '-unit').value = val.unit;
+            };
+            ['padding', 'margin', 'width', 'height', 'fontSize', 'borderRadius', 'borderWidth', 'gap'].forEach((k, i) => setUnitInput(k, ['prop-padding', 'prop-margin', 'prop-width', 'prop-height', 'prop-size', 'prop-radius', 'prop-border-width', 'prop-gap'][i]));
+
+            document.getElementById('prop-align').value = el.styles.textAlign || 'left';
+            document.getElementById('prop-align').onchange = (e) => updateStyle('textAlign', e.target.value);
+            document.getElementById('prop-border-style').value = el.styles.borderStyle || 'none';
+            document.getElementById('prop-border-style').onchange = (e) => updateStyle('borderStyle', e.target.value);
+        }
+
+        function updateLayoutControls(el) {
+            const lay = document.getElementById('layout-engine-controls'), fi = document.getElementById('flex-item-controls');
+            const def = componentRegistry[el.type];
+            if (def && def.canDrop) {
+                lay.classList.remove('hidden');
+                document.getElementById('prop-flex-dir').value = el.styles.flexDirection || 'column';
+                document.getElementById('prop-flex-wrap').value = el.styles.flexWrap || 'nowrap';
+                document.getElementById('prop-justify').value = el.styles.justifyContent || 'flex-start';
+                document.getElementById('prop-align-items').value = el.styles.alignItems || 'stretch';
+                const isFlex = el.styles.display === 'flex';
+                document.getElementById('btn-display-block').className = `flex-1 text-xs py-1 rounded transition ${!isFlex ? 'btn-active' : 'btn-inactive'}`;
+                document.getElementById('btn-display-flex').className = `flex-1 text-xs py-1 rounded transition ${isFlex ? 'btn-active' : 'btn-inactive'}`;
+                document.getElementById('flex-options').classList.toggle('hidden', !isFlex);
+            } else lay.classList.add('hidden');
+
+            const par = findParentByChildId(canvasElements, selectedId);
+            if (par && par.styles.display === 'flex') {
+                fi.classList.remove('hidden');
+                document.getElementById('prop-flex-grow').value = el.styles.flexGrow || 0;
+                document.getElementById('prop-flex-shrink').value = el.styles.flexShrink || 1;
+                document.getElementById('prop-flex-basis').value = el.styles.flexBasis || 'auto';
+            } else fi.classList.add('hidden');
+        }
+
+        function findElementById(arr, id) {
+            if (!arr || !Array.isArray(arr)) return null;
+            for (let el of arr) {
+                if (el.id === id) return el;
+                if (el.children && Array.isArray(el.children)) {
+                    const f = findElementById(el.children, id);
+                    if (f) return f;
+                }
+            }
+            return null;
+        }
+
+        function findParentByChildId(arr, id) {
+            if (!arr || !Array.isArray(arr)) return null;
+            for (let el of arr) {
+                if (el.children && Array.isArray(el.children)) {
+                    if (el.children.some(c => c.id === id)) return el;
+                    const f = findParentByChildId(el.children, id);
+                    if (f) return f;
+                }
+            }
+            return null;
+        }
+
+        function selectElement(id) { selectedId = id; renderCanvas(); updatePropertiesPanel(); }
+        function updateStyle(p, v) { const el = findElementById(canvasElements, selectedId); if (el) { el.styles[p] = v; renderCanvas(); if (p === 'display') updatePropertiesPanel(); debounceHistory(); } }
+        function updateUnitStyle(p, t) { const id = 'prop-' + (p === 'fontSize' ? 'size' : (p === 'borderRadius' ? 'radius' : (p === 'borderWidth' ? 'border-width' : p))); const v = document.getElementById(id + '-val').value, u = document.getElementById(id + '-unit').value; updateStyle(p, u === 'auto' ? 'auto' : v + u); }
+        function updateProperty(p, v) { const el = findElementById(canvasElements, selectedId); if (el) { el[p] = v; renderCanvas(); debounceHistory(); } }
+        function allowDrop(e) { e.preventDefault(); e.stopPropagation(); }
+        function drag(e) { e.dataTransfer.setData("type", e.target.dataset.type); }
+        function drop(e, pid) { e.preventDefault(); e.stopPropagation(); addElement(e.dataTransfer.getData("type"), pid); }
+
+        function reloadSystem() { Object.keys(componentRegistry).forEach(key => delete componentRegistry[key]); propertyRegistry.length = 0; init(); initSandbox(); myPlugins.forEach(p => { if (p.code) pluginSandbox.exec(p.code); }); renderSidebar(); if (selectedId) updatePropertiesPanel(); }
+
+        const pushToHistory = () => { if (historyStep < historyStack.length - 1) historyStack = historyStack.slice(0, historyStep + 1); const s = JSON.stringify(canvasElements); if (historyStep === -1 || historyStack[historyStep] !== s) { historyStack.push(s); historyStep++; if (historyStack.length > 50) { historyStack.shift(); historyStep--; } } localStorage.setItem(STORAGE_KEY, s); updateBtns(); };
+        const save = () => { localStorage.setItem(STORAGE_KEY, JSON.stringify(canvasElements)); if (historyDebounceTimer) clearTimeout(historyDebounceTimer); historyDebounceTimer = setTimeout(pushToHistory, 500); };
+        const debounceHistory = () => save();
+        const undo = () => { if (historyStep > 0) { historyStep--; loadHistory(); } };
+        const redo = () => { if (historyStep < historyStack.length - 1) { historyStep++; loadHistory(); } };
+        const loadHistory = () => { canvasElements = JSON.parse(historyStack[historyStep]); selectedId = null; renderCanvas(); updatePropertiesPanel(); localStorage.setItem(STORAGE_KEY, JSON.stringify(canvasElements)); updateBtns(); };
+        const updateBtns = () => { document.getElementById('btn-undo').disabled = historyStep <= 0; document.getElementById('btn-redo').disabled = historyStep >= historyStack.length - 1; };
+        document.addEventListener('keydown', e => { if ((e.ctrlKey || e.metaKey) && e.key === 'z') { e.preventDefault(); undo(); } if ((e.ctrlKey || e.metaKey) && e.key === 'y') { e.preventDefault(); redo(); } });
+
+        function clearCanvas() { if (confirm('Clear?')) { canvasElements = []; selectedId = null; renderCanvas(); updatePropertiesPanel(); pushToHistory(); } }
+        function deleteSelected() { if (!selectedId) return; const p = findParentByChildId(canvasElements, selectedId); if (p) p.children = p.children.filter(c => c.id !== selectedId); else canvasElements = canvasElements.filter(c => c.id !== selectedId); selectedId = null; renderCanvas(); updatePropertiesPanel(); pushToHistory(); }
+        function moveItem(dir) { if (!selectedId) return; let arr = canvasElements; const p = findParentByChildId(canvasElements, selectedId); if (p) arr = p.children; const idx = arr.findIndex(c => c.id === selectedId); if (idx < 0) return; const newIdx = idx + dir; if (newIdx >= 0 && newIdx < arr.length) { [arr[idx], arr[newIdx]] = [arr[newIdx], arr[idx]]; renderCanvas(); pushToHistory(); } }
+        function parseUnitValue(val) { if (!val || val === 'auto') return { num: '', unit: 'auto' }; const m = val.toString().match(/^([\d.]+)(.*)$/); return m ? { num: m[1], unit: m[2] || 'px' } : { num: '', unit: 'px' }; }
+        function rgbToHex(rgb) { if (!rgb) return '#000000'; if (rgb.startsWith('#')) return rgb; if (rgb === 'transparent') return '#ffffff'; const res = rgb.match(/\d+/g); return res ? "#" + ((1 << 24) + (parseInt(res[0]) << 16) + (parseInt(res[1]) << 8) + parseInt(res[2])).toString(16).slice(1) : '#000000'; }
+        function saveToLocalStorage() { localStorage.setItem(STORAGE_KEY, JSON.stringify(canvasElements)); }
+        function loadFromLocalStorage() {
+            const d = localStorage.getItem(STORAGE_KEY); if (d) { try { canvasElements = JSON.parse(d); renderCanvas(); } catch (e) { } }
+            // Plugins handled via API now
+            reloadSystem(); pushToHistory();
+        }
+        function handleImageUpload(input) { const f = input.files[0]; if (!f) return; const r = new FileReader(); r.onload = (e) => { const el = findElementById(canvasElements, selectedId); if (el && el.type === 'image') { el.src = e.target.result; renderCanvas(); updatePropertiesPanel(); pushToHistory(); } }; r.readAsDataURL(f); }
+        function importJSON(input) { const f = input.files[0]; if (!f) return; const r = new FileReader(); r.onload = (e) => { canvasElements = JSON.parse(e.target.result); renderCanvas(); selectedId = null; updatePropertiesPanel(); pushToHistory(); }; r.readAsText(f); }
+        function exportJSON() { const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(canvasElements)); const a = document.createElement('a'); a.href = dataStr; a.download = "layout.json"; a.click(); }
+
+        // --- Core Content Generators (Used for Export & Preview) ---
+        function generateHTML(elements, indent = '  ') {
+            if (!elements || !Array.isArray(elements)) return '';
+
+            return elements.map(e => {
+                const def = componentRegistry[e.type];
+                const tag = e.tagName || (def ? def.tagName : 'div');
+                let attr = `class="element-${e.id} ${(e.styles.className || '').trim()}"`;
+
+                if (e.type === 'input') attr += ` placeholder="${e.placeholder || ''}"`;
+                if (e.type === 'image') attr += ` src="${e.src || ''}" alt="Img"`;
+
+                if (tag === 'form') {
+                    if (e.action) attr += ` action="${e.action}"`;
+                    if (e.method) attr += ` method="${e.method}"`;
+                }
+
+                if (tag === 'a' && e.href) attr += ` href="${e.href}"`;
+
+                // Safe check for children
+                const hasChildren = e.children && Array.isArray(e.children) && e.children.length > 0;
+
+                if (hasChildren) {
+                    return `${indent}<${tag} ${attr}>\n${generateHTML(e.children, indent + '  ')}${indent}</${tag}>`;
+                } else {
+                    const content = (!e.children || !e.children.length && e.type !== 'input' && e.type !== 'image') ? e.content : '';
+                    if (tag === 'input' || tag === 'img') return `${indent}<${tag} ${attr} />`;
+                    return `${indent}<${tag} ${attr}>${content || ''}</${tag}>`;
+                }
+            }).join('\n');
+        }
+
+        function generateCSS(elements) {
+            if (!elements || !Array.isArray(elements)) return '';
+
+            let css = '';
+            elements.forEach(el => {
+                css += `.element-${el.id} {`;
+                if (el.styles) {
+                    for (const [key, value] of Object.entries(el.styles)) {
+                        if (key === 'className') continue;
+                        if (value !== undefined && value !== '') {
+                            const kebab = key.replace(/([A-Z])/g, '-$1').toLowerCase();
+                            css += `${kebab}:${value};`;
+                        }
+                    }
+                }
+                css += '}\n';
+                if (el.children && Array.isArray(el.children)) css += generateCSS(el.children);
+            });
+            return css;
+        }
+
+
+
+        // --- Preview Logic ---
+        function openPreview() {
+            document.getElementById('preview-modal').classList.remove('hidden');
+            const css = `* { box-sizing: border-box; }\nbody { margin: 0; font-family: sans-serif; }\n@keyframes fi{from{opacity:0}to{opacity:1}}@keyframes su{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}@keyframes zi{from{transform:scale(0.9);opacity:0}to{transform:scale(1);opacity:1}}@keyframes bo{0%,20%,50%,80%,100%{transform:translateY(0)}40%{transform:translateY(-20px)}60%{transform:translateY(-10px)}}\n${globalStyles || ''}\n` + generateCSS(canvasElements);
+            const htmlContent = generateHTML(canvasElements);
+
+            const script = `
+            <script>
+                document.addEventListener('DOMContentLoaded', () => {
+                    document.querySelectorAll('.nav-toggle').forEach(b => {
+                        b.onclick = () => {
+                            const menu = b.closest('nav').querySelector('.nav-menu');
+                            if(menu) menu.classList.toggle('open');
+                        };
+                    });
+                });
+            <\/script>`;
+
+            document.getElementById('preview-frame').srcdoc = `<!DOCTYPE html><html><head><style>${css}</style></head><body>${htmlContent}${script}</body></html>`;
+            setPreviewMode('desktop');
+        }
+        function closePreview() { document.getElementById('preview-modal').classList.add('hidden'); }
+        function setPreviewMode(m) { const w = document.getElementById('preview-wrapper');['desktop', 'tablet', 'mobile'].forEach(x => document.getElementById('preview-btn-' + x).classList.remove('text-indigo-600', 'bg-indigo-50')); document.getElementById('preview-btn-' + m).classList.add('text-indigo-600', 'bg-indigo-50'); w.style.width = m === 'desktop' ? '100%' : (m === 'tablet' ? '768px' : '375px'); w.style.height = m === 'mobile' ? '85%' : '100%'; w.style.border = m === 'desktop' ? 'none' : (m === 'mobile' ? '4px solid #374151' : '1px solid #ccc'); w.style.borderRadius = m === 'desktop' ? '0' : (m === 'mobile' ? '24px' : '12px'); }
+
+        // --- Backend Integration ---
+        const SITE_ID = "<%= siteId %>"; // Injected by server
+
+        async function checkAuth() {
+            try {
+                const res = await fetch('/api/auth/me');
+                if (!res.ok) window.location.href = '/login';
+            } catch (e) {
+                window.location.href = '/login';
+            }
+        }
+
+        // Global state for page settings
+        let currentSiteData = {};
+        let allUserPages = [];
+
+        async function loadSiteData() {
+            try {
+                // Fetch current site
+                const res = await fetch(`/api/sites/${SITE_ID}`);
+                if (!res.ok) {
+                    alert('Site not found or access denied');
+                    window.location.href = '/dashboard';
+                    return;
+                }
+                const site = await res.json();
+                currentSiteData = site;
+
+                // Fetch ALL sites for linking
+                const pagesRes = await fetch('/api/sites');
+                if (pagesRes.ok) allUserPages = await pagesRes.json();
+
+                // Update global canvasElements
+                if (site.content) {
+                    canvasElements = JSON.parse(site.content);
+                    renderCanvas();
+                    pushToHistory();
+                }
+            } catch (e) {
+                console.error(e);
+                alert('Error loading site data');
+            }
+        }
+
+        // Settings Modal
+        function openSettings() {
+            document.getElementById('setting-name').value = currentSiteData.name || '';
+            document.getElementById('setting-slug').value = currentSiteData.slug || '';
+            document.getElementById('settings-modal').classList.remove('hidden');
+        }
+        function closeSettings() {
+            document.getElementById('settings-modal').classList.add('hidden');
+        }
+
+        async function saveSettings() {
+            const name = document.getElementById('setting-name').value;
+            const slug = document.getElementById('setting-slug').value;
+            try {
+                const res = await fetch(`/api/sites/${SITE_ID}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, slug })
+                });
+                if (res.ok) {
+                    const updated = await res.json();
+                    currentSiteData = updated;
+                    alert('Settings updated!');
+                    closeSettings();
+                } else {
+                    const err = await res.json();
+                    alert(err.msg || 'Failed to update settings');
+                }
+            } catch (e) {
+                console.error(e);
+                alert('Error processing request');
+            }
+        }
+
+        async function saveSite() {
+            // Save content only
+            const body = {
+                content: JSON.stringify(canvasElements),
+                themes: JSON.stringify({})
+            };
+
+            try {
+                const res = await fetch(`/api/sites/${SITE_ID}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+
+                if (res.ok) alert('Content saved!');
+                else alert('Failed to save');
+            } catch (e) {
+                console.error(e);
+                alert('Error saving');
+            }
+        }
+
+        async function logout() {
+            await fetch('/api/auth/logout', { method: 'POST' });
+            window.location.href = '/login';
+        }
+
+        function navigateDashboard() {
+            window.location.href = '/dashboard';
+        }
+
+        // --- Media Manager Integration ---
+        function openMediaModal() {
+            document.getElementById('media-modal').classList.remove('hidden');
+            loadBuilderMedia();
+        }
+        function closeMediaModal() {
+            document.getElementById('media-modal').classList.add('hidden');
+        }
+
+        async function loadBuilderMedia() {
+            const grid = document.getElementById('builder-media-grid');
+            grid.innerHTML = '<div class="col-span-4 text-center py-10"><i class="fa-solid fa-circle-notch fa-spin text-gray-400 text-2xl"></i></div>';
+
+            try {
+                const res = await fetch('/api/media');
+                const data = await res.json();
+                grid.innerHTML = '';
+
+                if (data.length === 0) {
+                    grid.innerHTML = '<div class="col-span-4 text-center py-10 text-gray-400">No media found</div>';
+                    return;
+                }
+
+                data.forEach(file => {
+                    const el = document.createElement('div');
+                    el.className = 'cursor-pointer group relative aspect-square bg-gray-100 rounded-lg overflow-hidden border border-gray-200 hover:border-indigo-500 transition-all';
+                    el.innerHTML = `
+                        <img src="${file.url}" class="w-full h-full object-cover">
+                        <div class="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                             <div class="opacity-0 group-hover:opacity-100 bg-indigo-600 text-white text-xs px-2 py-1 rounded shadow-sm">Select</div>
+                        </div>
+                    `;
+                    el.onclick = () => selectMedia(file.url);
+                    grid.appendChild(el);
+                });
+            } catch (e) {
+                grid.innerHTML = '<div class="col-span-4 text-center text-red-500">Error loading media</div>';
+            }
+        }
+
+        async function handleBuilderUpload(input) {
+            const files = input.files;
+            if (!files.length) return;
+            // Simple upload loop
+            for (let file of files) {
+                const formData = new FormData();
+                formData.append('media', file);
+                try { await fetch('/api/media', { method: 'POST', body: formData }); } catch (e) { console.error(e); }
+            }
+            loadBuilderMedia();
+        }
+
+        function selectMedia(url) {
+            const el = findElementById(canvasElements, selectedId);
+            if (el && el.type === 'image') {
+                el.src = url;
+                renderCanvas();
+                updatePropertiesPanel();
+                pushToHistory();
+            }
+            closeMediaModal();
+        }
+
+        function reloadSystem() {
+            initSandbox();
+            if (myPlugins && myPlugins.length > 0) {
+                myPlugins.forEach(p => {
+                    // Pass pluginId to exec so it can be used in the sandbox
+                    if (pluginSandbox) pluginSandbox.exec(p.code, p.id);
+                });
+            }
+            renderSidebar();
+        }
+
+        async function loadPlugins() {
+            try {
+                const res = await fetch('/api/plugins/me');
+                if (res.ok) {
+                    myPlugins = await res.json();
+                }
+            } catch (e) { console.error('Error loading plugins', e); }
+            reloadSystem(); // This triggers initSandbox -> registers plugins -> renders sidebar
+        }
+
+        // Start
+        checkAuth();
+        init();
+        loadPlugins(); // Load installed/custom plugins
+        loadSiteData(); // Load the specific site for this builder session
+
+    </script>
+</body>
+
+</html>

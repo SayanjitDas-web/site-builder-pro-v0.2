@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - SiteBuilder Pro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="/js/plugins.js"></script>
+</head>
+
+<body class="bg-gray-50 min-h-screen">
+    <nav class="bg-white shadow-sm border-b border-gray-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16 items-center">
+                <div class="flex items-center">
+                    <i class="fa-solid fa-layer-group text-blue-600 text-2xl mr-2"></i>
+                    <h1 class="font-bold text-gray-800 text-xl">SiteBuilder Pro</h1>
+                </div>
+                <div class="flex items-center gap-4">
+                    <button id="manageUsersBtn" onclick="window.location.href='/users'"
+                        class="hidden text-gray-600 hover:text-blue-600 transition flex items-center text-sm font-medium mr-2">
+                        <i class="fa-solid fa-users-gear mr-2"></i> Users
+                    </button>
+                    <button onclick="showPluginStore()"
+                        class="text-gray-600 hover:text-purple-600 transition flex items-center text-sm font-medium mr-4">
+                        <i class="fa-solid fa-plug mr-2"></i> Plugin Store
+                    </button>
+                    <span id="userEmail" class="text-sm text-gray-600 hidden md:inline"></span>
+                    <button onclick="logout()" class="text-gray-500 hover:text-red-600 transition">
+                        <i class="fa-solid fa-sign-out-alt text-lg"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div class="flex justify-between items-center mb-8">
+            <h2 class="text-2xl font-bold text-gray-800">My Pages</h2>
+            <button onclick="createPage()"
+                class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition flex items-center shadow-sm">
+                <i class="fa-solid fa-plus mr-2"></i> New Page
+            </button>
+        </div>
+
+        <!-- Sub-navigation for Dashboard/Media -->
+        <div class="flex gap-2 mb-8">
+            <a href="/dashboard"
+                class="flex items-center gap-3 px-4 py-2.5 bg-indigo-50 text-indigo-600 rounded-lg transition-all font-medium">
+                <!-- Active State -->
+                <i class="fa-solid fa-chart-pie"></i> <span>Dashboard</span>
+            </a>
+            <a href="/media"
+                class="flex items-center gap-3 px-4 py-2.5 text-gray-600 hover:bg-gray-50 rounded-lg transition-all group">
+                <i class="fa-solid fa-images text-gray-400 group-hover:text-indigo-600 transition-colors"></i>
+                <span>Media</span>
+            </a>
+        </div>
+
+        <!-- Sites Grid -->
+        <div id="sitesGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <!-- Loading State -->
+            <div class="col-span-full text-center py-12">
+                <i class="fa-solid fa-circle-notch fa-spin text-gray-400 text-3xl"></i>
+                <p class="mt-2 text-gray-500">Loading your pages...</p>
+            </div>
+        </div>
+
+        <!-- Custom Plugin Pages Container -->
+        <div id="custom-page-container" class="hidden">
+            <!-- Plugin content injected here -->
+        </div>
+    </main>
+
+    <!-- Plugin Store Modal -->
+    <div id="plugin-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-4xl h-[80vh] flex flex-col overflow-hidden">
+            <div class="flex items-center justify-between p-4 border-b bg-gray-50">
+                <h3 class="font-bold text-gray-800 flex items-center gap-2"><i
+                        class="fa-solid fa-plug text-purple-600"></i> Plugin Store</h3>
+                <button onclick="document.getElementById('plugin-modal').classList.add('hidden')"
+                    class="text-gray-500 hover:text-gray-700"><i class="fa-solid fa-times text-xl"></i></button>
+            </div>
+
+            <div class="flex border-b border-gray-200">
+                <button onclick="switchPluginTab('store')" id="ptab-store"
+                    class="flex-1 px-4 py-3 text-sm font-medium border-b-2 border-purple-600 text-purple-700 bg-purple-50 focus:outline-none transition">Available
+                    Plugins</button>
+                <button onclick="switchPluginTab('custom')" id="ptab-custom"
+                    class="flex-1 px-4 py-3 text-sm font-medium text-gray-600 hover:bg-gray-50 focus:outline-none transition">Custom
+                    Code</button>
+            </div>
+
+            <div class="flex-1 overflow-y-auto bg-gray-50 p-6" id="plugin-content-area">
+                <div id="plugin-store-grid" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+
+                <div id="view-custom" class="hidden flex flex-col gap-4">
+                    <p class="text-sm text-gray-600">Write custom JavaScript to extend the builder.</p>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <!-- Left: Editor -->
+                        <div class="lg:col-span-2 flex flex-col gap-3">
+                            <div
+                                class="bg-gray-900 rounded-lg p-4 border border-gray-700 h-[400px] shadow-inner relative group">
+                                <div
+                                    class="absolute top-2 right-2 text-xs text-gray-500 opacity-0 group-hover:opacity-100 transition">
+                                    Javascript</div>
+                                <textarea id="plugin-code"
+                                    class="w-full h-full bg-transparent text-green-400 font-mono text-sm outline-none resize-none leading-relaxed"
+                                    spellcheck="false"
+                                    placeholder="// Example:&#10;dashboardAPI.addComponent('sidebar', {&#10;  id: 'my-btn',&#10;  label: 'Hello',&#10;  icon: 'fa-star',&#10;  onClick: () => alert('Hi!')&#10;});"></textarea>
+                            </div>
+
+                            <div class="flex gap-2">
+                                <input type="text" id="custom-plugin-name"
+                                    class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                    placeholder="Plugin Name (e.g. My Custom Button)">
+                                <button onclick="saveCustomPlugin()"
+                                    class="px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-medium transition shadow-sm whitespace-nowrap">
+                                    <i class="fa-solid fa-save mr-2"></i> Save Plugin
+                                </button>
+                            </div>
+                            <div id="plugin-status" class="text-xs text-gray-500 h-4"></div>
+                        </div>
+
+                        <!-- Right: List -->
+                        <div class="lg:col-span-1">
+                            <div
+                                class="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden h-full flex flex-col">
+                                <div class="bg-gray-50 px-4 py-3 border-b border-gray-200">
+                                    <h4 class="font-bold text-gray-700 text-sm">Installed Scripts</h4>
+                                </div>
+                                <div id="custom-plugins-list"
+                                    class="flex-1 overflow-y-auto p-2 space-y-2 max-h-[400px]">
+                                    <!-- List items injected here -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+
+    <!-- Dashboard Media Modal -->
+    <div id="dashboard-media-modal"
+        class="hidden fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-4xl h-[80vh] flex flex-col overflow-hidden">
+            <div class="flex items-center justify-between p-4 border-b bg-gray-50">
+                <h3 class="font-bold text-gray-800 flex items-center gap-2">
+                    <i class="fa-solid fa-images text-indigo-600"></i> Select Media
+                </h3>
+                <button onclick="closeDashboardMediaModal()" class="text-gray-500 hover:text-gray-700">
+                    <i class="fa-solid fa-times text-xl"></i>
+                </button>
+            </div>
+
+            <div class="p-4 bg-white border-b border-gray-100 flex justify-between items-center">
+                <div class="text-sm text-gray-500">Click an image to select it.</div>
+                <label
+                    class="cursor-pointer bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition flex items-center gap-2">
+                    <i class="fa-solid fa-cloud-upload-alt"></i> Upload New
+                    <input type="file" multiple accept="image/*" class="hidden" onchange="handleDashboardUpload(this)">
+                </label>
+            </div>
+
+            <div class="flex-1 overflow-y-auto bg-gray-50 p-6">
+                <div id="dashboard-media-grid" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                    <!-- Media items injected here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- Media Manager Logic ---
+        // --- Plugin Logic (API Based) ---
+        let installedPluginIds = [];
+        let availablePlugins = []; // Official from store
+        let customPlugins = []; // User's custom
+
+        // Dashboard API for Plugins
+        const dashboardAPI = {
+            components: {
+                sidebar: [],
+                topbar: [],
+                actions: []
+            },
+            pages: {},
+            addComponent: (location, component) => {
+                // component: { id, label, icon, onClick }
+                if (!dashboardAPI.components[location]) dashboardAPI.components[location] = [];
+                dashboardAPI.components[location].push(component);
+            },
+            registerPage: (id, label, icon, renderer) => {
+                // renderer: function(container)
+                dashboardAPI.pages[id] = renderer;
+
+                // Add Sidebar Link
+                const navContainer = document.querySelector('main .flex.gap-2.mb-8');
+                const btn = document.createElement('button');
+                btn.className = "flex items-center gap-3 px-4 py-2.5 text-gray-600 hover:bg-gray-50 rounded-lg transition-all group";
+                btn.innerHTML = `<i class="fa-solid ${icon} text-gray-400 group-hover:text-indigo-600 transition-colors"></i> <span>${label}</span>`;
+                btn.onclick = () => showCustomPage(id);
+                navContainer.appendChild(btn);
+            },
+            // Helper for data API
+            getData: async (pluginId, collection) => {
+                const res = await fetch(`/api/pl-data/${pluginId}/${collection}`);
+                return res.ok ? res.json() : [];
+            },
+            createData: async (pluginId, collection, data) => {
+                const res = await fetch(`/api/pl-data/${pluginId}/${collection}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ data })
+                });
+                return res.json();
+            },
+            deleteData: async (pluginId, collection, id) => {
+                await fetch(`/api/pl-data/${pluginId}/${collection}/${id}`, { method: 'DELETE' });
+            },
+            openMediaPicker: (callback) => {
+                openDashboardMediaPicker(callback);
+            },
+            getPages: async () => {
+                const res = await fetch('/api/sites');
+                return res.ok ? res.json() : [];
+            }
+        };
+
+        async function initPlugins() {
+            try {
+                // 1. Get Me (Installed Official + Custom)
+                const meRes = await fetch('/api/plugins/me');
+                if (meRes.ok) {
+                    const myPlugins = await meRes.json();
+                    // Installed IDs are the IDs of the plugins I have
+                    installedPluginIds = myPlugins.map(p => p.id);
+                    // Separate custom to show in sidebar
+                    customPlugins = myPlugins.filter(p => !p.isOfficial);
+                    renderCustomPluginsList();
+
+                    // Execute Plugin Code
+                    myPlugins.forEach(p => {
+                        if (p.code) {
+                            try {
+                                // Safe execution? We trust installed plugins for now.
+                                // We wrap in a function to provide scope and API
+                                const pluginFunc = new Function('dashboardAPI', 'pluginId', p.code);
+                                pluginFunc(dashboardAPI, p.id);
+                            } catch (err) {
+                                console.error(`Error loading plugin ${p.name}:`, err);
+                            }
+                        }
+                    });
+
+                    // Render injected components
+                    renderPluginUI();
+                }
+
+                // 2. Get Store (Official)
+                const storeRes = await fetch('/api/plugins/store');
+                if (storeRes.ok) {
+                    availablePlugins = await storeRes.json();
+                    renderPluginStore();
+                }
+            } catch (e) {
+                console.error('Error loading plugins', e);
+            }
+        }
+
+        function renderPluginUI() {
+            // Sidebar buttons (add to the nav container)
+            const navContainer = document.querySelector('nav .flex.items-center.gap-4');
+            dashboardAPI.components.topbar.forEach(btn => {
+                const b = document.createElement('button');
+                b.className = "text-gray-600 hover:text-blue-600 transition flex items-center text-sm font-medium mr-4";
+                b.innerHTML = `<i class="fa-solid ${btn.icon} mr-2"></i> ${btn.label}`;
+                b.onclick = btn.onClick;
+                navContainer.insertBefore(b, navContainer.firstChild);
+            });
+
+            // Sidebar / Sub-nav
+            const subNav = document.querySelector('main .flex.gap-2.mb-8');
+            dashboardAPI.components.sidebar.forEach(btn => {
+                const a = document.createElement('button');
+                a.onclick = btn.onClick;
+                a.className = "flex items-center gap-3 px-4 py-2.5 text-gray-600 hover:bg-gray-50 rounded-lg transition-all group";
+                a.innerHTML = `<i class="fa-solid ${btn.icon} text-gray-400 group-hover:text-indigo-600 transition-colors"></i> <span>${btn.label}</span>`;
+                subNav.appendChild(a);
+            });
+        }
+
+        function showPluginStore() {
+            initPlugins();
+            document.getElementById('plugin-modal').classList.remove('hidden');
+        }
+
+        function renderPluginStore() {
+            const grid = document.getElementById('plugin-store-grid');
+            grid.innerHTML = '';
+
+            availablePlugins.forEach(p => {
+                const inst = installedPluginIds.includes(p.id);
+                const card = document.createElement('div');
+                card.className = "bg-white p-4 rounded-lg border border-gray-200 shadow-sm flex flex-col gap-3";
+                card.innerHTML = `
+                        <div class="flex items-start justify-between">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 rounded-lg flex items-center justify-center bg-gray-100 text-lg ${p.color}">
+                                    <i class="fa-solid ${p.icon}"></i>
+                                </div>
+                                <div>
+                                    <h4 class="font-bold text-gray-800">${p.name}</h4>
+                                    <p class="text-xs text-gray-500">Official Plugin</p>
+                                </div>
+                            </div>
+                            ${inst ? '<span class="px-2 py-1 bg-green-100 text-green-700 text-xs font-bold rounded">INSTALLED</span>' : ''}
+                        </div>
+                        <p class="text-sm text-gray-600 flex-1">${p.description}</p>
+                        <button onclick="${inst ? `uninstallPlugin('${p.id}')` : `installPlugin('${p.id}')`}" 
+                            class="w-full py-2 rounded-lg text-sm font-medium transition-colors ${inst ? 'bg-red-50 text-red-600 hover:bg-red-100' : 'bg-indigo-600 text-white hover:bg-indigo-700'}">
+                            ${inst ? 'Uninstall' : 'Install'}
+                        </button>
+                    `;
+                grid.appendChild(card);
+            });
+        }
+
+        function showCustomPage(pageId) {
+            // Hide standard views
+            document.getElementById('sitesGrid').classList.add('hidden');
+            document.querySelector('.flex.justify-between.items-center.mb-8').classList.add('hidden'); // Hide "My Pages" header
+
+            // Show Container
+            const container = document.getElementById('custom-page-container');
+            container.classList.remove('hidden');
+            container.innerHTML = ''; // sensitive, maybe we want to keep state? for now clear.
+
+            // Execute Renderer
+            if (dashboardAPI.pages[pageId]) {
+                const title = document.createElement('h2');
+                title.className = "text-2xl font-bold text-gray-800 mb-6 capitalize";
+                title.innerText = pageId.replace(/-/g, ' ');
+                container.appendChild(title);
+
+                try {
+                    dashboardAPI.pages[pageId](container);
+                } catch (e) {
+                    container.innerHTML += `<div class="text-red-500">Error rendering page: ${e.message}</div>`;
+                }
+            }
+        }
+
+        function switchPluginTab(t) {
+            document.getElementById('plugin-store-grid').classList.toggle('hidden', t !== 'store');
+            document.getElementById('view-custom').classList.toggle('hidden', t === 'store');
+
+            document.getElementById('ptab-store').className = `flex-1 px-4 py-3 text-sm font-medium border-b-2 transition ${t === 'store' ? 'border-purple-600 text-purple-700 bg-purple-50' : 'text-gray-600 hover:bg-gray-50'}`;
+            document.getElementById('ptab-custom').className = `flex-1 px-4 py-3 text-sm font-medium border-b-2 transition ${t !== 'store' ? 'border-purple-600 text-purple-700 bg-purple-50' : 'text-gray-600 hover:bg-gray-50'}`;
+        }
+
+        async function saveCustomPlugin() {
+            const name = document.getElementById('custom-plugin-name').value.trim() || 'Untitled Plugin';
+            const code = document.getElementById('plugin-code').value;
+
+            if (!code) return alert('Please enter code');
+
+            try {
+                const res = await fetch('/api/plugins/custom', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, code })
+                });
+
+                if (res.ok) {
+                    document.getElementById('plugin-status').innerText = 'Plugin saved! Open Builder to test.';
+                    document.getElementById('plugin-status').className = 'text-xs text-green-500 mt-2 h-4';
+
+                    document.getElementById('custom-plugin-name').value = '';
+                    document.getElementById('plugin-code').value = '';
+                    await initPlugins();
+                } else {
+                    alert('Failed to save plugin');
+                }
+            } catch (e) { alert('Error saving plugin'); }
+        }
+
+        async function deleteCustomPlugin(id) {
+            if (!confirm("Delete this custom plugin?")) return;
+            try {
+                const res = await fetch(`/api/plugins/custom/${id}`, { method: 'DELETE' });
+                if (res.ok) {
+                    await initPlugins();
+                } else alert('Failed to delete plugin');
+            } catch (e) { alert('Error deleting plugin'); }
+        }
+
+        function renderCustomPluginsList() {
+            const list = document.getElementById('custom-plugins-list');
+            if (!list) return;
+            list.innerHTML = '';
+
+            if (customPlugins.length === 0) {
+                list.innerHTML = '<p class="text-xs text-gray-400 italic">No custom plugins yet.</p>';
+                return;
+            }
+
+            customPlugins.forEach(p => {
+                list.innerHTML += `
+                    <div class="bg-white border border-gray-200 rounded p-3 flex justify-between items-center">
+                        <div class="flex items-center gap-3">
+                             <div class="w-8 h-8 rounded bg-purple-50 flex items-center justify-center text-purple-600"><i class="fa-solid fa-code text-xs"></i></div>
+                             <div>
+                                <h5 class="font-bold text-gray-800 text-sm">${p.name}</h5>
+                                <p class="text-[10px] text-gray-500">Custom Script</p>
+                             </div>
+                        </div>
+                        <button onclick="deleteCustomPlugin('${p.id}')" class="text-gray-400 hover:text-red-500 transition"><i class="fa-solid fa-trash"></i></button>
+                    </div>
+                `;
+            });
+        }
+
+        async function installPlugin(id) {
+            try {
+                const res = await fetch(`/api/plugins/install/${id}`, { method: 'POST' });
+                if (res.ok) {
+                    await initPlugins(); // Reload
+                } else alert('Install failed');
+            } catch (e) { alert('Error installing'); }
+        }
+
+        async function uninstallPlugin(id) {
+            if (!confirm("Uninstall this plugin?")) return;
+            try {
+                const res = await fetch(`/api/plugins/install/${id}`, { method: 'DELETE' });
+                if (res.ok) {
+                    await initPlugins(); // Reload
+                } else alert('Uninstall failed');
+            } catch (e) { alert('Error uninstalling'); }
+        }
+
+        // Check Auth
+        async function init() {
+            try {
+                const res = await fetch('/api/auth/me');
+                if (!res.ok) window.location.href = '/login';
+                const user = await res.json();
+                document.getElementById('userEmail').innerText = user.email;
+                if (user.role === 'admin') {
+                    document.getElementById('manageUsersBtn').classList.remove('hidden');
+                }
+                loadSites();
+                initPlugins();
+            } catch (e) {
+                window.location.href = '/login';
+            }
+        }
+
+        async function loadSites() {
+            try {
+                const res = await fetch('/api/sites');
+                const sites = await res.json();
+                const grid = document.getElementById('sitesGrid');
+
+                if (!sites || sites.length === 0) {
+                    showSetupWizard(grid);
+                    return;
+                }
+
+                grid.innerHTML = sites.map(site => `
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition group">
+                        <div class="h-40 bg-gray-100 flex items-center justify-center border-b border-gray-100 relative">
+                            <i class="fa-solid fa-image text-4xl text-gray-300"></i>
+                             <div class="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition duration-200">
+                                <a href="/builder/${site._id}" class="bg-white text-gray-800 px-4 py-2 rounded-full font-medium hover:bg-blue-50 transition">
+                                    <i class="fa-solid fa-pen-to-square mr-2"></i>Edit
+                                </a>
+                            </div>
+                        </div>
+                        <div class="p-5">
+                            <h3 class="font-bold text-gray-800 text-lg truncate">${site.name}</h3>
+                            <p class="text-xs text-gray-500 mt-1">Last updated: ${new Date(site.updatedAt).toLocaleDateString()}</p>
+                            
+                            <div class="mt-4 flex gap-2 border-t pt-4 border-gray-50">
+                                <a href="/p/${site.slug || site._id}" target="_blank" class="flex-1 text-center py-1.5 text-sm text-gray-600 hover:bg-gray-50 rounded transition border border-transparent hover:border-gray-200">
+                                    <i class="fa-solid fa-eye mr-1"></i> View
+                                </a>
+                                <button onclick="deleteSite('${site._id}')" class="flex-1 text-center py-1.5 text-sm text-red-600 hover:bg-red-50 rounded transition border border-transparent hover:border-red-100">
+                                    <i class="fa-solid fa-trash mr-1"></i> Delete
+                                </button>
+
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        function showSetupWizard(container) {
+            container.innerHTML = `
+                <div class="col-span-full flex flex-col items-center justify-center py-12">
+                    <div class="bg-white rounded-2xl shadow-xl border border-gray-100 p-8 w-full max-w-lg text-center">
+                        <div class="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-2xl mx-auto mb-6">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i>
+                        </div>
+                        <h2 class="text-2xl font-bold text-gray-800 mb-2">Welcome to SiteBuilder Pro!</h2>
+                        <p class="text-gray-500 mb-8">Let's get your website set up in seconds.</p>
+                        
+                        <div class="space-y-4 text-left">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Website Name</label>
+                                <input type="text" id="setup-site-name" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition" placeholder="e.g. My Awesome Portfolio">
+                            </div>
+                            <button onclick="runSetup()" class="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-lg hover:shadow-xl transition transform hover:-translate-y-0.5">
+                                Create My Website
+                            </button>
+                        </div>
+                        <p class="text-xs text-gray-400 mt-6">This will create a default Home page for you.</p>
+                    </div>
+                </div>`;
+        }
+
+        async function runSetup() {
+            const name = document.getElementById('setup-site-name').value;
+            if (!name) return alert("Please enter a website name");
+
+            const btn = document.querySelector('button[onclick="runSetup()"]');
+            btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin mr-2"></i> Setting up...';
+            btn.disabled = true;
+
+            try {
+                const res = await fetch('/api/sites/setup', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ siteName: name })
+                });
+
+                if (res.ok) {
+                    const site = await res.json();
+                    window.location.href = `/builder/${site._id}`;
+                } else {
+                    alert('Setup failed. Please try again.');
+                    btn.innerHTML = 'Create My Website';
+                    btn.disabled = false;
+                }
+            } catch (e) {
+                console.error(e);
+                alert("Error during setup");
+                btn.innerHTML = 'Create My Website';
+                btn.disabled = false;
+            }
+        }
+
+        async function createPage() {
+            const name = prompt("Enter page name:");
+            if (!name) return;
+
+            try {
+                const res = await fetch('/api/sites', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        name,
+                        content: '[]', // Start empty
+                        themes: '{}',
+                    })
+                });
+                if (res.ok) {
+                    const newSite = await res.json();
+                    window.location.href = `/builder/${newSite._id}`;
+                } else {
+                    alert('Failed to create page');
+                }
+            } catch (e) {
+                console.error(e);
+                alert('Error creating page');
+            }
+        }
+
+        async function deleteSite(id) {
+            if (!confirm("Are you sure you want to delete this page?")) return;
+
+            try {
+                const res = await fetch(`/api/sites/${id}`, {
+                    method: 'DELETE'
+                });
+
+                if (res.ok) {
+                    // Remove from UI immediately or reload
+                    loadSites();
+                } else {
+                    const data = await res.json();
+                    alert(data.msg || "Failed to delete page");
+                }
+            } catch (e) {
+                console.error(e);
+                alert("Error deleting page");
+            }
+        }
+
+        async function logout() {
+            await fetch('/api/auth/logout', { method: 'POST' });
+            window.location.href = '/login';
+        }
+
+
+
+        // --- Media Manager Logic ---
+        let mediaPickerCallback = null;
+
+        function openDashboardMediaPicker(cb) {
+            mediaPickerCallback = cb;
+            document.getElementById('dashboard-media-modal').classList.remove('hidden');
+            loadDashboardMedia();
+        }
+
+        function closeDashboardMediaModal() {
+            document.getElementById('dashboard-media-modal').classList.add('hidden');
+            mediaPickerCallback = null;
+        }
+
+        async function loadDashboardMedia() {
+            const grid = document.getElementById('dashboard-media-grid');
+            grid.innerHTML = '<div class="col-span-full text-center py-10"><i class="fa-solid fa-circle-notch fa-spin text-gray-400 text-2xl"></i></div>';
+
+            try {
+                const res = await fetch('/api/media');
+                const data = await res.json();
+                grid.innerHTML = '';
+
+                if (data.length === 0) {
+                    grid.innerHTML = '<div class="col-span-full text-center py-10 text-gray-400">No media found</div>';
+                    return;
+                }
+
+                data.forEach(file => {
+                    const el = document.createElement('div');
+                    el.className = 'cursor-pointer group relative aspect-square bg-gray-100 rounded-lg overflow-hidden border border-gray-200 hover:border-indigo-500 transition-all';
+                    el.innerHTML = `
+                        <img src="${file.url}" class="w-full h-full object-cover">
+                        <div class="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                             <div class="opacity-0 group-hover:opacity-100 bg-indigo-600 text-white text-xs px-2 py-1 rounded shadow-sm">Select</div>
+                        </div>
+                    `;
+                    el.onclick = () => {
+                        if (mediaPickerCallback) mediaPickerCallback(file.url);
+                        closeDashboardMediaModal();
+                    };
+                    grid.appendChild(el);
+                });
+            } catch (e) {
+                grid.innerHTML = '<div class="col-span-full text-center text-red-500">Error loading media</div>';
+            }
+        }
+
+        async function handleDashboardUpload(input) {
+            const files = input.files;
+            if (!files.length) return;
+
+            const grid = document.getElementById('dashboard-media-grid');
+            grid.innerHTML = '<div class="col-span-full text-center py-10"><i class="fa-solid fa-circle-notch fa-spin text-indigo-600 text-3xl"></i><p class="mt-2 text-gray-500">Uploading...</p></div>';
+
+            for (let file of files) {
+                const formData = new FormData();
+                formData.append('media', file);
+                try { await fetch('/api/media', { method: 'POST', body: formData }); } catch (e) { console.error(e); }
+            }
+            loadDashboardMedia();
+        }
+
+        init();
+    </script>
+</body>
+
+</html>

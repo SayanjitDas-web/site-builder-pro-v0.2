@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Site View</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* Extract basic styles from builder that are needed for rendering */
+        .canvas-element {
+            position: relative;
+        }
+    </style>
+</head>
+
+<body class="bg-white">
+    <!-- Render Container -->
+    <div id="render-container" class="min-h-screen"></div>
+
+    <script src="/js/store-runtime.js"></script>
+    <script>
+        const SITE_SLUG = "<%= siteSlug %>";
+        let canvasElements = [];
+
+        async function loadSite() {
+            try {
+                const res = await fetch(`/api/sites/slug/${SITE_SLUG}`);
+                if (!res.ok) return document.body.innerHTML = '<h1 class="text-center mt-10 text-red-500">Page not found</h1>';
+
+                const site = await res.json();
+                document.title = site.name;
+                window.siteId = site._id; // Expose Site ID for plugins
+
+                // Init Shop if available
+                if (window.Shop) {
+                    window.Shop.init({ siteId: site._id, pageSlug: SITE_SLUG });
+                }
+
+                canvasElements = JSON.parse(site.content);
+                render();
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        function render() {
+            const container = document.getElementById('render-container');
+            container.innerHTML = '';
+            canvasElements.forEach(el => {
+                container.appendChild(renderElement(el));
+            });
+        }
+
+        function renderElement(el) {
+            // Map types to tags if needed, or use el.tagName
+            const tagName = el.tagName || 'div';
+            const node = document.createElement(tagName);
+
+            // Apply Styles
+            if (el.styles) {
+                Object.assign(node.style, el.styles);
+            }
+
+            // Apply Content
+            if (el.content) {
+                if (tagName === 'input' || tagName === 'textarea') {
+                    node.value = el.content;
+                } else if (tagName === 'img') {
+                    node.src = el.src || '';
+                } else {
+                    node.innerText = el.content;
+                }
+            }
+
+            // Attributes (href for links, etc)
+            if (el.href) node.href = el.href;
+            if (el.src) node.src = el.src;
+            if (el.placeholder) node.placeholder = el.placeholder;
+            if (el.onclick) node.setAttribute('onclick', el.onclick);
+            if (el.type === 'input') node.type = 'text'; // Default
+
+            // Class names (Tailwind or custom)
+            if (el.styles && el.styles.className) {
+                node.className = el.styles.className;
+            }
+
+            // Recursively render children
+            if (el.children && Array.isArray(el.children)) {
+                el.children.forEach(child => {
+                    node.appendChild(renderElement(child));
+                });
+            }
+
+            return node;
+        }
+
+        // Global Styles (Animations, Navbar CSS) - injected by plugins
+        // We might need to fetch global styles from the site object if we saved them.
+        // Currently Site model content is just the JSON elements. 
+        // If plugins like 'anim' or 'nav-bar' added global CSS, it needs to be saved/loaded.
+        // The current save implementation in builder.ejs only saves `canvasElements`.
+        // To fully support plugins, we should have saved `globalStyles` too. 
+        // For now, I'll add the essential Navbar CSS here manually as a fallback, 
+        // since the default content uses the navbar plugin structure.
+
+        const style = document.createElement('style');
+        style.innerHTML = `
+            .navbar-root { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; }
+            .nav-menu { display: flex; gap: 20px; }
+            .nav-toggle { display: none; background: none; border: none; font-size: 24px; cursor: pointer; }
+            @media (max-width: 768px) {
+                .nav-menu { display: none; width: 100%; flex-direction: column; gap: 10px; padding-top: 10px; }
+                .nav-menu.open { display: flex; }
+                .nav-toggle { display: block; }
+            }
+            /* Animations */
+            @keyframes fi { from { opacity: 0; } to { opacity: 1; } }
+            @keyframes su { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+            @keyframes zi { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+            @keyframes bo { 0%, 20%, 50%, 80%, 100% { transform: translateY(0); } 40% { transform: translateY(-20px); } 60% { transform: translateY(-10px); } }
+        `;
+        document.head.appendChild(style);
+
+        // Simple Toggle Script for Navbar
+        document.addEventListener('click', (e) => {
+            if (e.target.classList.contains('nav-toggle')) {
+                const nav = e.target.closest('.navbar-root');
+                if (nav) {
+                    const menu = nav.querySelector('.nav-menu');
+                    if (menu) menu.classList.toggle('open');
+                }
+            }
+        });
+
+        loadSite();
+    </script>
+</body>
+
+</html>
